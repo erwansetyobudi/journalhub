@@ -49,3 +49,10 @@ Gunakan cron (Linux) atau Task Scheduler (Windows) untuk menjalankan `harvest.ph
 ## Pengembang
 **Erwan Setyo Budi**  
 GitHub: https://github.com/erwansetyobudi
+
+<img width="1366" height="2509" alt="image" src="https://github.com/user-attachments/assets/7e01a9ee-2170-4b01-861d-a2016d34b867" />
+<img width="1366" height="2717" alt="image" src="https://github.com/user-attachments/assets/85e8786f-0bcf-4070-9192-60574fbd96f2" />
+
+<img width="1366" height="1286" alt="image" src="https://github.com/user-attachments/assets/2bb215cf-3806-424f-86aa-fe78a4f16c5a" />
+
+
