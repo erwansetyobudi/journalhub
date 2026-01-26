@@ -7,49 +7,27 @@ SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 
 SET NAMES utf8mb4;
 
+-- Hapus dulu tabel yang punya foreign key ke tabel lain
 DROP TABLE IF EXISTS `author_subject_edges`;
-CREATE TABLE `author_subject_edges` (
-  `journal_id` int NOT NULL,
-  `author_id` bigint NOT NULL,
-  `subject_id` bigint NOT NULL,
-  `weight` int NOT NULL DEFAULT '1',
-  PRIMARY KEY (`journal_id`,`author_id`,`subject_id`),
-  KEY `author_id` (`author_id`),
-  KEY `subject_id` (`subject_id`),
-  KEY `idx_weight` (`journal_id`,`weight`),
-  CONSTRAINT `author_subject_edges_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `author_subject_edges_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `author_subject_edges_ibfk_3` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-
-DROP TABLE IF EXISTS `authors`;
-CREATE TABLE `authors` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `name_key` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_author_key` (`name_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-
 DROP TABLE IF EXISTS `coauthor_edges`;
-CREATE TABLE `coauthor_edges` (
-  `journal_id` int NOT NULL,
-  `author_a` bigint NOT NULL,
-  `author_b` bigint NOT NULL,
-  `weight` int NOT NULL DEFAULT '1',
-  PRIMARY KEY (`journal_id`,`author_a`,`author_b`),
-  KEY `author_a` (`author_a`),
-  KEY `author_b` (`author_b`),
-  KEY `idx_weight` (`journal_id`,`weight`),
-  CONSTRAINT `coauthor_edges_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `coauthor_edges_ibfk_2` FOREIGN KEY (`author_a`) REFERENCES `authors` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `coauthor_edges_ibfk_3` FOREIGN KEY (`author_b`) REFERENCES `authors` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+DROP TABLE IF EXISTS `record_authors`;
+DROP TABLE IF EXISTS `record_subjects`;
+DROP TABLE IF EXISTS `subject_edges`;
+DROP TABLE IF EXISTS `harvest_runs`;
+DROP TABLE IF EXISTS `oai_records`;
 
-
+-- Hapus tabel yang direferensikan
+DROP TABLE IF EXISTS `authors`;
+DROP TABLE IF EXISTS `journals`;
+DROP TABLE IF EXISTS `subjects`;
+DROP TABLE IF EXISTS `publishers`;
+DROP TABLE IF EXISTS `rumpunilmu`;
 DROP TABLE IF EXISTS `global_stats_summary`;
+DROP TABLE IF EXISTS `network_cache`;
+
+-- Sekarang buat tabel-tabel dalam urutan yang benar:
+
+-- 1. Tabel utama tanpa foreign key dependencies
 CREATE TABLE `global_stats_summary` (
   `stat_key` varchar(50) NOT NULL,
   `stat_value` bigint DEFAULT NULL,
@@ -57,33 +35,26 @@ CREATE TABLE `global_stats_summary` (
   PRIMARY KEY (`stat_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `harvest_runs`;
-CREATE TABLE `harvest_runs` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `journal_id` int NOT NULL,
-  `started_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `finished_at` datetime DEFAULT NULL,
-  `status` enum('running','ok','error') NOT NULL DEFAULT 'running',
-  `message` text,
-  `total_seen_all` int NOT NULL DEFAULT '0',
-  `total_inserted` int NOT NULL DEFAULT '0',
-  `total_updated` int NOT NULL DEFAULT '0',
-  `total_skipped_dup_title` int NOT NULL DEFAULT '0',
-  `active_count` int NOT NULL DEFAULT '0',
-  `deleted_count` int NOT NULL DEFAULT '0',
-  `pub_earliest` date DEFAULT NULL,
-  `pub_latest` date DEFAULT NULL,
-  `doi_present` int NOT NULL DEFAULT '0',
-  `unique_authors` int NOT NULL DEFAULT '0',
-  `unique_subjects` int NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `idx_journal_time` (`journal_id`,`started_at`),
-  CONSTRAINT `harvest_runs_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE
+CREATE TABLE `network_cache` (
+  `cache_key` varchar(50) NOT NULL,
+  `cache_data` json DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`cache_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `rumpunilmu` (
+  `rumpunilmu_id` int NOT NULL AUTO_INCREMENT,
+  `nama_rumpun` varchar(255) NOT NULL,
+  PRIMARY KEY (`rumpunilmu_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-DROP TABLE IF EXISTS `journals`;
+CREATE TABLE `publishers` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 2. Tabel journals (direferensikan oleh banyak tabel)
 CREATE TABLE `journals` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(200) NOT NULL,
@@ -104,17 +75,24 @@ CREATE TABLE `journals` (
   UNIQUE KEY `uk_oai` (`oai_base_url`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `network_cache`;
-CREATE TABLE `network_cache` (
-  `cache_key` varchar(50) NOT NULL,
-  `cache_data` json DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`cache_key`)
+-- 3. Tabel authors dan subjects (direferensikan oleh tabel-tabel lain)
+CREATE TABLE `authors` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `name_key` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_author_key` (`name_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `subjects` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `label` varchar(255) NOT NULL,
+  `label_key` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_subject_key` (`label_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-DROP TABLE IF EXISTS `oai_records`;
+-- 4. Tabel oai_records (membutuhkan journals)
 CREATE TABLE `oai_records` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `journal_id` int NOT NULL,
@@ -161,16 +139,31 @@ CREATE TABLE `oai_records` (
   CONSTRAINT `oai_records_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `publishers`;
-CREATE TABLE `publishers` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`)
+-- 5. Tabel harvest_runs (membutuhkan journals)
+CREATE TABLE `harvest_runs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `journal_id` int NOT NULL,
+  `started_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `finished_at` datetime DEFAULT NULL,
+  `status` enum('running','ok','error') NOT NULL DEFAULT 'running',
+  `message` text,
+  `total_seen_all` int NOT NULL DEFAULT '0',
+  `total_inserted` int NOT NULL DEFAULT '0',
+  `total_updated` int NOT NULL DEFAULT '0',
+  `total_skipped_dup_title` int NOT NULL DEFAULT '0',
+  `active_count` int NOT NULL DEFAULT '0',
+  `deleted_count` int NOT NULL DEFAULT '0',
+  `pub_earliest` date DEFAULT NULL,
+  `pub_latest` date DEFAULT NULL,
+  `doi_present` int NOT NULL DEFAULT '0',
+  `unique_authors` int NOT NULL DEFAULT '0',
+  `unique_subjects` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_journal_time` (`journal_id`,`started_at`),
+  CONSTRAINT `harvest_runs_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `record_authors`;
+-- 6. Tabel penghubung (membutuhkan journals, authors, subjects, oai_records)
 CREATE TABLE `record_authors` (
   `record_id` bigint NOT NULL,
   `author_id` bigint NOT NULL,
@@ -181,8 +174,6 @@ CREATE TABLE `record_authors` (
   CONSTRAINT `record_authors_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `record_subjects`;
 CREATE TABLE `record_subjects` (
   `record_id` bigint NOT NULL,
   `subject_id` bigint NOT NULL,
@@ -192,16 +183,20 @@ CREATE TABLE `record_subjects` (
   CONSTRAINT `record_subjects_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `rumpunilmu`;
-CREATE TABLE `rumpunilmu` (
-  `rumpunilmu_id` int NOT NULL AUTO_INCREMENT,
-  `nama_rumpun` varchar(255) NOT NULL,
-  PRIMARY KEY (`rumpunilmu_id`)
+CREATE TABLE `coauthor_edges` (
+  `journal_id` int NOT NULL,
+  `author_a` bigint NOT NULL,
+  `author_b` bigint NOT NULL,
+  `weight` int NOT NULL DEFAULT '1',
+  PRIMARY KEY (`journal_id`,`author_a`,`author_b`),
+  KEY `author_a` (`author_a`),
+  KEY `author_b` (`author_b`),
+  KEY `idx_weight` (`journal_id`,`weight`),
+  CONSTRAINT `coauthor_edges_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coauthor_edges_ibfk_2` FOREIGN KEY (`author_a`) REFERENCES `authors` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coauthor_edges_ibfk_3` FOREIGN KEY (`author_b`) REFERENCES `authors` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `subject_edges`;
 CREATE TABLE `subject_edges` (
   `journal_id` int NOT NULL,
   `subject_a` bigint NOT NULL,
@@ -216,15 +211,18 @@ CREATE TABLE `subject_edges` (
   CONSTRAINT `subject_edges_ibfk_3` FOREIGN KEY (`subject_b`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-
-DROP TABLE IF EXISTS `subjects`;
-CREATE TABLE `subjects` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `label` varchar(255) NOT NULL,
-  `label_key` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_subject_key` (`label_key`)
+CREATE TABLE `author_subject_edges` (
+  `journal_id` int NOT NULL,
+  `author_id` bigint NOT NULL,
+  `subject_id` bigint NOT NULL,
+  `weight` int NOT NULL DEFAULT '1',
+  PRIMARY KEY (`journal_id`,`author_id`,`subject_id`),
+  KEY `author_id` (`author_id`),
+  KEY `subject_id` (`subject_id`),
+  KEY `idx_weight` (`journal_id`,`weight`),
+  CONSTRAINT `author_subject_edges_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `author_subject_edges_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `author_subject_edges_ibfk_3` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
 
 -- 2026-01-26 02:07:20
