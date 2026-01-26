@@ -109,6 +109,24 @@ function logError($message) {
     file_put_contents($logFile, date('Y-m-d H:i:s') . ' - ' . $message . PHP_EOL, FILE_APPEND);
 }
 
+// Tambahkan fungsi helper untuk formatting angka
+function safeNumberFormat($value, $decimals = 0, $decimalSeparator = '.', $thousandsSeparator = ',') {
+    // Cek jika null atau empty
+    if ($value === null || $value === '') {
+        $value = 0;
+    }
+    
+    // Konversi ke float
+    $floatValue = (float) $value;
+    
+    // Format angka
+    return number_format($floatValue, $decimals, $decimalSeparator, $thousandsSeparator);
+}
+
+function formatNumber($value) {
+    return safeNumberFormat($value, 0, ',', '.');
+}
+
 // ========== API ENDPOINTS ==========
 if (isset($_GET['api'])) {
     try {
@@ -263,7 +281,24 @@ function getBasicStats() {
                     (SELECT COUNT(DISTINCT language_best) FROM oai_records WHERE language_best IS NOT NULL) as languages_count
             ");
             $result = $stmt->fetch();
-            return $result ?: [
+            
+            // Konversi semua nilai ke integer
+            if ($result) {
+                return [
+                    'total_journals' => (int)$result['total_journals'],
+                    'active_journals' => (int)$result['active_journals'],
+                    'total_records' => (int)$result['total_records'],
+                    'active_records' => (int)$result['active_records'],
+                    'total_authors' => (int)$result['total_authors'],
+                    'total_publishers' => (int)$result['total_publishers'],
+                    'total_subjects' => (int)$result['total_subjects'],
+                    'doi_records' => (int)$result['doi_records'],
+                    'total_harvests' => (int)$result['total_harvests'],
+                    'languages_count' => (int)$result['languages_count']
+                ];
+            }
+            
+            return [
                 'total_journals' => 0,
                 'active_journals' => 0,
                 'total_records' => 0,
@@ -1274,8 +1309,11 @@ function getYearlyNetworkComparison($journal_id = null, $publisher = null, $rump
 // ========== MAIN DATA FETCHING ==========
 try {
     $basicStats = getBasicStats();
-    $doiPercentage = isset($basicStats['active_records']) && $basicStats['active_records'] > 0 
-        ? round(($basicStats['doi_records'] / $basicStats['active_records'] * 100), 1) 
+    // Pastikan nilai adalah float
+    $activeRecords = (float)($basicStats['active_records'] ?? 0);
+    $doiRecords = (float)($basicStats['doi_records'] ?? 0);
+    $doiPercentage = $activeRecords > 0 
+        ? round(($doiRecords / $activeRecords * 100), 1) 
         : 0;
 } catch (Exception $e) {
     $basicStats = [
@@ -1535,9 +1573,9 @@ try {
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h6 class="text-muted mb-1">Journals</h6>
-                                <h3 class="mb-0"><?= number_format($basicStats['total_journals']) ?></h3>
+                                <h3 class="mb-0"><?= formatNumber($basicStats['total_journals'] ?? 0) ?></h3>
                                 <small class="text-success">
-                                    <?= number_format($basicStats['active_journals']) ?> active
+                                    <?= formatNumber($basicStats['active_journals'] ?? 0) ?> active
                                 </small>
                             </div>
                             <div class="text-primary">
@@ -1554,9 +1592,9 @@ try {
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h6 class="text-muted mb-1">Records</h6>
-                                <h3 class="mb-0"><?= number_format($basicStats['total_records']) ?></h3>
+                                <h3 class="mb-0"><?= formatNumber($basicStats['total_records'] ?? 0) ?></h3>
                                 <small class="text-success">
-                                    <?= number_format($basicStats['active_records']) ?> active
+                                    <?= formatNumber($basicStats['active_records'] ?? 0) ?> active
                                 </small>
                             </div>
                             <div class="text-success">
@@ -1573,7 +1611,7 @@ try {
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h6 class="text-muted mb-1">Authors</h6>
-                                <h3 class="mb-0"><?= number_format($basicStats['total_authors']) ?></h3>
+                                <h3 class="mb-0"><?= formatNumber($basicStats['total_authors'] ?? 0) ?></h3>
                                 <small class="text-muted">
                                     Unique authors
                                 </small>
@@ -1592,7 +1630,7 @@ try {
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h6 class="text-muted mb-1">DOI Coverage</h6>
-                                <h3 class="mb-0"><?= $doiPercentage ?>%</h3>
+                                <h3 class="mb-0"><?= formatNumber($doiPercentage ?? 0) ?>%</h3>
                                 <div class="progress" style="height: 6px;">
                                     <div class="progress-bar bg-warning" style="width: <?= $doiPercentage ?>%"></div>
                                 </div>
