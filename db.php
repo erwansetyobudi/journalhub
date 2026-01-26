@@ -22,6 +22,20 @@
 
 declare(strict_types=1);
 
+if (php_sapi_name() === 'cli-server') {
+    // untuk development server built-in PHP
+    if ($_SERVER['SCRIPT_FILENAME'] === __FILE__) {
+        header('HTTP/1.1 403 Forbidden');
+        exit('Access Forbidden');
+    }
+} else {
+    // untuk server production
+    if ($_SERVER['REQUEST_METHOD'] === 'GET' && realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'])) {
+        header('HTTP/1.1 403 Forbidden');
+        exit('Access Forbidden');
+    }
+}
+
 function db(): PDO {
   static $pdo = null;
   if ($pdo) return $pdo;
