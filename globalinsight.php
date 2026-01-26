@@ -1103,6 +1103,7 @@ function getBubbleChartData($limit = 50, $journal_id = null, $publisher = null, 
             JOIN record_subjects rs ON s.id = rs.subject_id
             JOIN oai_records r ON rs.record_id = r.id
             JOIN journals j ON r.journal_id = j.id
+            LEFT JOIN record_authors ra ON r.id = ra.record_id  -- Perbaikan: Tambahkan JOIN ini
         ";
         
         $whereConditions = [];
