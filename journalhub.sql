@@ -33,26 +33,26 @@ CREATE TABLE `global_stats_summary` (
   `stat_value` bigint DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`stat_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `network_cache` (
   `cache_key` varchar(50) NOT NULL,
   `cache_data` json DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`cache_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `rumpunilmu` (
   `rumpunilmu_id` int NOT NULL AUTO_INCREMENT,
   `nama_rumpun` varchar(255) NOT NULL,
   PRIMARY KEY (`rumpunilmu_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `publishers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Tabel journals (direferensikan oleh banyak tabel)
 CREATE TABLE `journals` (
@@ -64,7 +64,7 @@ CREATE TABLE `journals` (
   `set_spec` varchar(200) DEFAULT NULL,
   `harvest_freq` enum('daily','weekly','manual') NOT NULL DEFAULT 'daily',
   `subject` int DEFAULT NULL,
-  `publisher` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `publisher` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `enabled` tinyint(1) NOT NULL DEFAULT '1',
   `last_harvest_at` datetime DEFAULT NULL,
   `last_harvest_status` enum('ok','error') DEFAULT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE `journals` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_oai` (`oai_base_url`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Tabel authors dan subjects (direferensikan oleh tabel-tabel lain)
 CREATE TABLE `authors` (
@@ -82,7 +82,7 @@ CREATE TABLE `authors` (
   `name_key` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_author_key` (`name_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `subjects` (
   `id` bigint NOT NULL AUTO_INCREMENT,
@@ -90,7 +90,7 @@ CREATE TABLE `subjects` (
   `label_key` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_subject_key` (`label_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Tabel oai_records (membutuhkan journals)
 CREATE TABLE `oai_records` (
@@ -137,7 +137,7 @@ CREATE TABLE `oai_records` (
   KEY `idx_journal_doi` (`journal_id`,`doi_best`),
   KEY `idx_journal_year` (`journal_id`,`pub_year`),
   CONSTRAINT `oai_records_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. Tabel harvest_runs (membutuhkan journals)
 CREATE TABLE `harvest_runs` (
@@ -161,7 +161,7 @@ CREATE TABLE `harvest_runs` (
   PRIMARY KEY (`id`),
   KEY `idx_journal_time` (`journal_id`,`started_at`),
   CONSTRAINT `harvest_runs_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 6. Tabel penghubung (membutuhkan journals, authors, subjects, oai_records)
 CREATE TABLE `record_authors` (
@@ -172,7 +172,7 @@ CREATE TABLE `record_authors` (
   KEY `idx_author` (`author_id`),
   CONSTRAINT `record_authors_ibfk_1` FOREIGN KEY (`record_id`) REFERENCES `oai_records` (`id`) ON DELETE CASCADE,
   CONSTRAINT `record_authors_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `record_subjects` (
   `record_id` bigint NOT NULL,
@@ -181,7 +181,7 @@ CREATE TABLE `record_subjects` (
   KEY `idx_subject` (`subject_id`),
   CONSTRAINT `record_subjects_ibfk_1` FOREIGN KEY (`record_id`) REFERENCES `oai_records` (`id`) ON DELETE CASCADE,
   CONSTRAINT `record_subjects_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `coauthor_edges` (
   `journal_id` int NOT NULL,
@@ -195,7 +195,7 @@ CREATE TABLE `coauthor_edges` (
   CONSTRAINT `coauthor_edges_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE,
   CONSTRAINT `coauthor_edges_ibfk_2` FOREIGN KEY (`author_a`) REFERENCES `authors` (`id`) ON DELETE CASCADE,
   CONSTRAINT `coauthor_edges_ibfk_3` FOREIGN KEY (`author_b`) REFERENCES `authors` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `subject_edges` (
   `journal_id` int NOT NULL,
@@ -209,7 +209,7 @@ CREATE TABLE `subject_edges` (
   CONSTRAINT `subject_edges_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE,
   CONSTRAINT `subject_edges_ibfk_2` FOREIGN KEY (`subject_a`) REFERENCES `subjects` (`id`) ON DELETE CASCADE,
   CONSTRAINT `subject_edges_ibfk_3` FOREIGN KEY (`subject_b`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `author_subject_edges` (
   `journal_id` int NOT NULL,
@@ -223,6 +223,6 @@ CREATE TABLE `author_subject_edges` (
   CONSTRAINT `author_subject_edges_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `journals` (`id`) ON DELETE CASCADE,
   CONSTRAINT `author_subject_edges_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE CASCADE,
   CONSTRAINT `author_subject_edges_ibfk_3` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2026-01-26 02:07:20
