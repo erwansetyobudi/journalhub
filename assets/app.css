@@ -1,0 +1,5 @@
+/* Small polish */
+.card-kpi { min-height: 110px; }
+.table-responsive { max-height: 520px; overflow: auto; }
+.footer-col-title { font-weight: 600; margin-bottom: .5rem; }
+
