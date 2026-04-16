@@ -1,32 +1,22 @@
 <?php
-/**
- * JournalHub
- *
- * Copyright (C) 2026  Erwan Setyo Budi (erwans818@gmail.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- *
+/*
+ * File: journal.php
+ * Created on Thu Apr 16 2026
+ * Last Updated: Thu Apr 16 2026
+ * Author: Erwan Setyo Budi
+ * Email: erwans818@gmail.com
+ * License: The GNU General Public License, Version 3 (GPL-3.0)
+ * Journal Hub: Aplikasi Harvesting Metadata Jurnal Akademik Berbasis OAI-PMH
  */
 
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 
 $id = (int)($_GET['id'] ?? 0);
+
 $journal = q("SELECT j.*, ri.nama_rumpun, p.name as publisher_name 
               FROM journals j 
-              LEFT JOIN rumpunilmu ri ON j.subject = ri.rumpunilmu_id
+              LEFT JOIN rumpunilmu ri ON j.rumpunilmu_id = ri.rumpunilmu_id
               LEFT JOIN publishers p ON j.publisher = p.name
               WHERE j.id=?", [$id])->fetch();
 if (!$journal) die("Journal not found.");
@@ -101,7 +91,6 @@ $doiDistribution = q("
   GROUP BY bucket
 ", [$id])->fetchAll();
 
-// Get recent records - FIXED: menggunakan kolom yang benar
 $recentRecords = q("
   SELECT r.id, 
          r.oai_identifier,
@@ -121,7 +110,6 @@ $recentRecords = q("
   LIMIT 100
 ", [$id])->fetchAll();
 
-// Get harvest history
 $harvestHistory = q("
   SELECT * FROM harvest_runs 
   WHERE journal_id=? 
@@ -173,11 +161,6 @@ $harvestHistory = q("
     
     .journal-table tr:hover {
       background-color: rgba(52, 152, 219, 0.1);
-    }
-    
-    .footer {
-      background-color: var(--primary-color);
-      color: white;
     }
     
     [data-bs-theme="dark"] {
@@ -259,27 +242,6 @@ $harvestHistory = q("
       background-color: #2d2d2d;
     }
     
-    .timeline-item {
-      position: relative;
-      padding-left: 30px;
-      margin-bottom: 20px;
-    }
-    
-    .timeline-item:before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 5px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background-color: #3498db;
-    }
-    
-    .timeline-item.success:before { background-color: #2ecc71; }
-    .timeline-item.error:before { background-color: #e74c3c; }
-    .timeline-item.running:before { background-color: #f39c12; }
-    
     .truncate-text {
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -297,11 +259,9 @@ $harvestHistory = q("
 </head>
 <body>
 
-<!-- Header -->
 <?php include 'header.php';?>
 
 <main class="container my-5">
-  <!-- Header Detail Jurnal -->
   <div class="row mb-4">
     <div class="col-12">
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
@@ -362,7 +322,6 @@ $harvestHistory = q("
     </div>
   </div>
 
-  <!-- Informasi Jurnal -->
   <div class="row mb-4">
     <div class="col-12">
       <div class="card">
@@ -393,7 +352,6 @@ $harvestHistory = q("
     </div>
   </div>
 
-  <!-- Statistik Utama -->
   <div class="row g-3 mb-4">
     <div class="col-md-3">
       <div class="card stat-card total h-100">
@@ -468,7 +426,6 @@ $harvestHistory = q("
     </div>
   </div>
 
-  <!-- Distribusi DOI -->
   <?php if (!empty($doiDistribution)): ?>
   <div class="row mb-4">
     <div class="col-12">
@@ -514,7 +471,6 @@ $harvestHistory = q("
   </div>
   <?php endif; ?>
 
-  <!-- History Harvest -->
   <?php if (!empty($harvestHistory)): ?>
   <div class="row mb-4">
     <div class="col-12">
@@ -568,9 +524,7 @@ $harvestHistory = q("
   </div>
   <?php endif; ?>
 
-  <!-- Tabel-tabel Scrollable -->
   <div class="row g-4">
-    <!-- Publikasi per Bulan -->
     <div class="col-lg-6">
       <div class="card shadow border-0">
         <div class="card-header bg-primary text-white py-3">
@@ -603,7 +557,6 @@ $harvestHistory = q("
       </div>
     </div>
 
-    <!-- Publikasi per Tahun -->
     <div class="col-lg-6">
       <div class="card shadow border-0">
         <div class="card-header bg-primary text-white py-3">
@@ -636,7 +589,6 @@ $harvestHistory = q("
       </div>
     </div>
 
-    <!-- Top Authors -->
     <div class="col-lg-6">
       <div class="card shadow border-0">
         <div class="card-header bg-success text-white py-3">
@@ -672,7 +624,6 @@ $harvestHistory = q("
       </div>
     </div>
 
-    <!-- Top Subjects -->
     <div class="col-lg-6">
       <div class="card shadow border-0">
         <div class="card-header bg-info text-white py-3">
@@ -708,11 +659,10 @@ $harvestHistory = q("
       </div>
     </div>
 
-    <!-- Recent Records -->
     <div class="col-12">
       <div class="card shadow border-0">
         <div class="card-header bg-secondary text-white py-3">
-          <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Records (100 terbaru berdasarkan last_seen_at)</h5>
+          <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Records (100 terbaru)</h5>
         </div>
         <div class="card-body p-0">
           <div class="scrollable-table">
@@ -731,7 +681,7 @@ $harvestHistory = q("
               <tbody>
                 <?php foreach ($recentRecords as $r): 
                   $lastSeen = new DateTime($r['last_seen_at'] ?? date('Y-m-d H:i:s'));
-                  $title = $r['title'] ?? $r['title_key'] ?? (json_decode($r['dc_title_json'] ?? '[]', true)[0] ?? '-');
+                  $title = $r['title'] ?? $r['title_key'] ?? '-';
                   $identifier = $r['oai_identifier'] ?? '-';
                   $doi = $r['doi_best'] ?? null;
                   $pubDate = $r['pub_date'] ?? '-';
@@ -749,7 +699,7 @@ $harvestHistory = q("
                   </td>
                   <td>
                     <?php if (!empty($r['authors_list'])): ?>
-                      <small class="truncate-text" title="<?=h($r['authors_list'])?>"><?=h($r['authors_list'])?></small>
+                      <small class="truncate-text"><?=h($r['authors_list'])?></small>
                     <?php else: ?>
                       <span class="text-muted">-</span>
                     <?php endif; ?>
@@ -770,8 +720,7 @@ $harvestHistory = q("
                     </span>
                   </td>
                   <td>
-                    <small class="text-muted"><?=$lastSeen->format('d/m/Y')?></small><br>
-                    <small><?=$lastSeen->format('H:i:s')?></small>
+                    <small class="text-muted"><?=$lastSeen->format('d/m/Y H:i:s')?></small>
                   </td>
                 </tr>
                 <?php endforeach; ?>
@@ -784,44 +733,37 @@ $harvestHistory = q("
   </div>
 </main>
 
-<!-- Footer -->
 <?php include 'footer.php';?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Toggle Theme
     document.addEventListener('DOMContentLoaded', function() {
         const themeToggle = document.getElementById('themeToggle');
-        const themeIcon = themeToggle.querySelector('.theme-icon');
-        
-        // Cek tema yang disimpan atau gunakan preferensi sistem
-        const savedTheme = localStorage.getItem('bs-theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        let currentTheme = savedTheme || (prefersDark ? 'dark' : 'light');
-        setTheme(currentTheme);
-        
-        // Event listener untuk toggle
-        themeToggle.addEventListener('click', function() {
-            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(currentTheme);
-            localStorage.setItem('bs-theme', currentTheme);
-        });
-        
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-bs-theme', theme);
+        if (themeToggle) {
+            const themeIcon = themeToggle.querySelector('.theme-icon');
+            const savedTheme = localStorage.getItem('bs-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            let currentTheme = savedTheme || (prefersDark ? 'dark' : 'light');
             
-            // Update icon
-            if (theme === 'dark') {
-                themeIcon.classList.remove('bi-moon-stars');
-                themeIcon.classList.add('bi-sun');
-            } else {
-                themeIcon.classList.remove('bi-sun');
-                themeIcon.classList.add('bi-moon-stars');
+            function setTheme(theme) {
+                document.documentElement.setAttribute('data-bs-theme', theme);
+                if (theme === 'dark') {
+                    themeIcon.classList.remove('bi-moon-stars');
+                    themeIcon.classList.add('bi-sun');
+                } else {
+                    themeIcon.classList.remove('bi-sun');
+                    themeIcon.classList.add('bi-moon-stars');
+                }
             }
+            setTheme(currentTheme);
+            
+            themeToggle.addEventListener('click', function() {
+                currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                setTheme(currentTheme);
+                localStorage.setItem('bs-theme', currentTheme);
+            });
         }
         
-        // Smooth scroll untuk tabel
         const tables = document.querySelectorAll('.scrollable-table');
         tables.forEach(table => {
             table.addEventListener('scroll', function() {
@@ -830,12 +772,6 @@ $harvestHistory = q("
                     thead.style.transform = `translateY(${this.scrollTop}px)`;
                 }
             });
-        });
-        
-        // Tooltip untuk text yang di-truncate
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     });
 </script>

@@ -1,25 +1,13 @@
 <?php
-/**
- * JournalHub
- *
- * Copyright (C) 2026  Erwan Setyo Budi (erwans818@gmail.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- *
+/*
+ * File: index.php
+ * Created on Thu Apr 16 2026
+ * Last Updated: Thu Apr 16 2026
+ * Author: Erwan Setyo Budi
+ * Email: erwans818@gmail.com
+ * License: The GNU General Public License, Version 3 (GPL-3.0)
+ * Journal Hub: Aplikasi Harvesting Metadata Jurnal Akademik Berbasis OAI-PMH
  */
-
 
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';
@@ -46,14 +34,14 @@ if (!empty($searchQuery)) {
     $isSearching = true;
     $searchTerm = '%' . $searchQuery . '%';
     
-    // Query pencarian jurnal
+    // Query pencarian jurnal - FIXED: menggunakan rumpunilmu_id
     $searchResults = q("
         SELECT 
             j.*, 
             ri.nama_rumpun,
             p.name as publisher_name 
         FROM journals j 
-        LEFT JOIN rumpunilmu ri ON j.subject = ri.rumpunilmu_id
+        LEFT JOIN rumpunilmu ri ON j.rumpunilmu_id = ri.rumpunilmu_id
         LEFT JOIN publishers p ON j.publisher = p.name
         WHERE 
             j.name LIKE ? OR 
@@ -70,56 +58,67 @@ if (!empty($searchQuery)) {
 
 // ========== ACTION HANDLERS ==========
 if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Ambil input dari form
-    $name = trim($_POST['name'] ?? 'Untitled Journal');
+    $name       = trim($_POST['name'] ?? 'Untitled Journal');
     $journalUrl = trim($_POST['journal_url'] ?? '');
-    $oaiBase = trim($_POST['oai_base_url'] ?? '');
-    $prefix = trim($_POST['metadata_prefix'] ?? 'oai_dc');
-    $set = trim($_POST['set_spec'] ?? '');
-    $freq = trim($_POST['harvest_freq'] ?? 'daily');
-    $rumpunilmu_id = null;
-    $rumpunilmu_custom = trim($_POST['rumpunilmu_custom'] ?? '');
-    $publisher = trim($_POST['publisher'] ?? '');
-
-    // Deteksi OAI Base jika tidak ada input
-    if ($oaiBase === '' && $journalUrl !== '') $oaiBase = detect_oai_base($journalUrl);
-    if ($oaiBase === '') die("OAI Base wajib diisi atau isi URL jurnal untuk auto-detect.");
-
-    if (!in_array($freq, ['daily','weekly','manual'], true)) $freq = 'daily';
-
-    // Jika ada publisher, insert ke tabel publishers
-    if ($publisher !== '') {
-        q("INSERT IGNORE INTO publishers (name) VALUES (?)", [$publisher]);
-    }
-
-    // Handle rumpun ilmu: pilih dari dropdown atau input custom
-    if (!empty($rumpunilmu_custom)) {
-        // Cek apakah rumpun ilmu custom sudah ada
-        $existingRumpun = q("SELECT rumpunilmu_id FROM rumpunilmu WHERE nama_rumpun = ?", [$rumpunilmu_custom])->fetch();
-        
-        if ($existingRumpun) {
-            $rumpunilmu_id = $existingRumpun['rumpunilmu_id'];
+    $oaiBase    = trim($_POST['oai_base_url'] ?? '');
+    $prefix     = trim($_POST['metadata_prefix'] ?? 'oai_dc');
+    $set        = trim($_POST['set_spec'] ?? '');
+    $freq       = trim($_POST['harvest_freq'] ?? 'daily');
+    $publisher  = trim($_POST['publisher'] ?? '');
+    
+    // untuk tabel rumpunilmu
+    $rumpunId = null;
+    
+    // Cek apakah ada nilai dari dropdown atau custom
+    if (isset($_POST['rumpunilmu_id']) && $_POST['rumpunilmu_id'] !== '' && $_POST['rumpunilmu_id'] !== 'custom') {
+        $rumpunId = (int)$_POST['rumpunilmu_id'];
+    } elseif (isset($_POST['rumpunilmu_custom']) && trim($_POST['rumpunilmu_custom']) !== '') {
+        $rumpunInput = trim($_POST['rumpunilmu_custom']);
+        $existing = q("SELECT rumpunilmu_id FROM rumpunilmu WHERE nama_rumpun = ? LIMIT 1", [$rumpunInput])->fetch();
+        if ($existing) {
+            $rumpunId = (int)$existing['rumpunilmu_id'];
         } else {
-            // Insert rumpun ilmu baru
-            q("INSERT INTO rumpunilmu (nama_rumpun) VALUES (?)", [$rumpunilmu_custom]);
-            $rumpunilmu_id = q("SELECT LAST_INSERT_ID()")->fetchColumn();
+            q("INSERT INTO rumpunilmu (nama_rumpun) VALUES (?)", [$rumpunInput]);
+            $rumpunId = (int)db()->lastInsertId();
         }
-    } else if (isset($_POST['rumpunilmu_id']) && $_POST['rumpunilmu_id'] !== '') {
-        $rumpunilmu_id = (int)$_POST['rumpunilmu_id'];
     }
-
-    // Insert jurnal
-    q("INSERT INTO journals (name, journal_url, oai_base_url, metadata_prefix, set_spec, harvest_freq, subject, publisher) 
-        VALUES (?,?,?,?,?,?,?,?)", [
-        $name, 
-        $journalUrl ?: null, 
-        $oaiBase, 
-        $prefix ?: 'oai_dc', 
-        $set ?: null, 
-        $freq, 
-        $rumpunilmu_id,
+    
+    if ($oaiBase === '' && $journalUrl !== '') {
+        try {
+            $oaiBase = detect_oai_base($journalUrl);
+        } catch (Throwable $e) {
+            die("Auto-detect OAI gagal: " . $e->getMessage());
+        }
+    }
+    if ($oaiBase === '') {
+        die("URL OAI Base wajib diisi atau isi URL jurnal utama untuk auto-detect.");
+    }
+    
+    if (!in_array($freq, ['daily','weekly','manual'], true)) {
+        $freq = 'daily';
+    }
+    
+    q("
+        INSERT INTO journals
+            (name, journal_url, oai_base_url, metadata_prefix, set_spec, harvest_freq, rumpunilmu_id, publisher)
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?)
+    ", [
+        $name,
+        $journalUrl ?: null,
+        $oaiBase,
+        $prefix ?: 'oai_dc',
+        $set ?: null,
+        $freq,
+        $rumpunId,
         $publisher ?: null
     ]);
+    
+    // refresh cache counter bila dipakai
+    if (file_exists(__DIR__ . '/counter_cache.json')) {
+        @unlink(__DIR__ . '/counter_cache.json');
+    }
+    
     redirect_home();
 }
 
@@ -136,29 +135,29 @@ if ($action === 'delete' && isset($_GET['id'])) {
 if ($action === 'harvest' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
     $force = (($_GET['force'] ?? '') === '1');
-    try { harvest_journal($id, $force, 0); } catch (Throwable $e) {}
+    try { harvest_journal($id, $force, 0); } catch (Throwable $e) { error_log($e->getMessage()); }
     redirect_home();
 }
 
-// Query journals (default - 10 jurnal terbaru)
+// Query journals (default - 10 jurnal terbaru) - FIXED: menggunakan rumpunilmu_id
 if (!$isSearching) {
     $journals = q("SELECT 
                     j.*, 
                     ri.nama_rumpun,
                     p.name as publisher_name 
                    FROM journals j 
-                   LEFT JOIN rumpunilmu ri ON j.subject = ri.rumpunilmu_id
+                   LEFT JOIN rumpunilmu ri ON j.rumpunilmu_id = ri.rumpunilmu_id
                    LEFT JOIN publishers p ON j.publisher = p.name
                    ORDER BY j.created_at DESC LIMIT 10")->fetchAll();
 } else {
     $journals = $searchResults;
 }
 
-// Query untuk counter dengan JOIN yang benar
+// Query untuk counter - FIXED: menggunakan rumpunilmu_id
 $counter = [
     'journal' => q("SELECT COUNT(*) FROM journals")->fetchColumn(),
     'publisher' => q("SELECT COUNT(DISTINCT publisher) FROM journals WHERE publisher IS NOT NULL AND publisher != ''")->fetchColumn(),
-    'rumpunilmu' => q("SELECT COUNT(DISTINCT subject) FROM journals WHERE subject IS NOT NULL")->fetchColumn(),
+    'rumpunilmu' => q("SELECT COUNT(DISTINCT rumpunilmu_id) FROM journals WHERE rumpunilmu_id IS NOT NULL")->fetchColumn(),
     'author' => q("SELECT COUNT(*) FROM authors")->fetchColumn(),
     'keyword' => q("SELECT COUNT(DISTINCT subject_id) FROM record_subjects")->fetchColumn(),
     'record' => q("SELECT COUNT(*) FROM oai_records")->fetchColumn(),
@@ -168,7 +167,7 @@ $counter = [
 $rows = [];
 foreach ($journals as $j) {
     $jid = (int)$j['id'];
-
+    
     $sum = q("
         SELECT
             COUNT(*) AS total,
@@ -180,9 +179,9 @@ foreach ($journals as $j) {
         FROM oai_records
         WHERE journal_id=? 
     ", [$jid])->fetch();
-
+    
     $doiCov = ((int)$sum['active'] > 0) ? ((int)$sum['doi_present'] / (int)$sum['active'] * 100.0) : 0.0;
-
+    
     $rows[] = ['j'=>$j, 'sum'=>$sum, 'doiCov'=>$doiCov];
 }
 ?>
@@ -209,21 +208,10 @@ foreach ($journals as $j) {
             padding: 15px 25px;
         }
         
-        .hero-section {
-            background: linear-gradient(rgba(13, 110, 253, 0.9), rgba(13, 110, 253, 0.8));
-            background-size: cover;
-            background-position: center;
-            color: white;
-            padding: 4rem 0;
-            border-radius: 15px;
-            margin-bottom: 3rem;
-        }
-        
         .journal-table tr:hover {
             background-color: rgba(13, 110, 253, 0.05);
         }
         
-        /* Dark mode fixes */
         [data-bs-theme="dark"] {
             background-color: #212529;
             color: #f8f9fa;
@@ -262,14 +250,6 @@ foreach ($journals as $j) {
         
         [data-bs-theme="dark"] .search-results-info {
             background-color: #2c3e50;
-        }
-        
-        .btn-toggle {
-            border: 1px solid #dee2e6;
-        }
-        
-        [data-bs-theme="dark"] .btn-toggle {
-            border-color: #495057;
         }
     </style>
 </head>
@@ -322,8 +302,6 @@ foreach ($journals as $j) {
     </div>
 </section>
 
-
-
 <!-- Section Jurnal -->
 <section class="container my-5">
     <div class="card shadow border-0">
@@ -372,7 +350,8 @@ foreach ($journals as $j) {
                                 $j = $r['j']; $s = $r['sum'];
                                 $statusColor = ((int)$j['enabled']===1) ? 'success' : 'secondary';
                                 $lastHarvestStatus = $j['last_harvest_status'] ?: 'Belum dipanen';
-                                $namaRumpun = $j['nama_rumpun'] ?: ($rumpunIlmuMap[$j['subject']] ?? 'Tidak ditentukan');
+                                // FIXED: menggunakan nama_rumpun dari JOIN
+                                $namaRumpun = $j['nama_rumpun'] ?? 'Tidak ditentukan';
                             ?>
                                 <tr>
                                     <td>
@@ -423,7 +402,6 @@ foreach ($journals as $j) {
 <section class="container my-5">
     <h2 class="text-center mb-4 fw-bold">Statistik Data</h2>
     <div class="row g-4">
-        <!-- Jumlah Jurnal -->
         <div class="col-md-4 col-lg-2">
             <div class="card card-counter text-center p-4 shadow border-0 bg-primary text-white">
                 <i class="bi bi-journals counter-icon fs-1"></i>
@@ -432,7 +410,6 @@ foreach ($journals as $j) {
             </div>
         </div>
         
-        <!-- Jumlah Penerbit -->
         <div class="col-md-4 col-lg-2">
             <div class="card card-counter text-center p-4 shadow border-0 bg-info text-white">
                 <i class="bi bi-building counter-icon fs-1"></i>
@@ -441,7 +418,6 @@ foreach ($journals as $j) {
             </div>
         </div>
         
-        <!-- Jumlah Rumpun Ilmu -->
         <div class="col-md-4 col-lg-2">
             <div class="card card-counter text-center p-4 shadow border-0 bg-success text-white">
                 <i class="bi bi-diagram-3 counter-icon fs-1"></i>
@@ -450,7 +426,6 @@ foreach ($journals as $j) {
             </div>
         </div>
         
-        <!-- Jumlah Author -->
         <div class="col-md-4 col-lg-2">
             <div class="card card-counter text-center p-4 shadow border-0 bg-warning text-dark">
                 <i class="bi bi-people counter-icon fs-1"></i>
@@ -459,7 +434,6 @@ foreach ($journals as $j) {
             </div>
         </div>
         
-        <!-- Jumlah Keyword -->
         <div class="col-md-4 col-lg-2">
             <div class="card card-counter text-center p-4 shadow border-0 bg-danger text-white">
                 <i class="bi bi-tags counter-icon fs-1"></i>
@@ -468,7 +442,6 @@ foreach ($journals as $j) {
             </div>
         </div>
         
-        <!-- Jumlah Record -->
         <div class="col-md-4 col-lg-2">
             <div class="card card-counter text-center p-4 shadow border-0 bg-secondary text-white">
                 <i class="bi bi-database counter-icon fs-1"></i>
@@ -538,7 +511,6 @@ foreach ($journals as $j) {
                                    placeholder="https://example.com/index.php/jurnal/oai">
                         </div>
                         
-                        <!-- Rumpun Ilmu dengan opsi dropdown dan input bebas -->
                         <div class="col-md-6">
                             <label class="form-label">Rumpun Ilmu</label>
                             <div class="input-group">
@@ -600,43 +572,36 @@ foreach ($journals as $j) {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Toggle Theme dengan perbaikan
     document.addEventListener('DOMContentLoaded', function() {
         const themeToggle = document.getElementById('themeToggle');
-        const themeIcon = themeToggle.querySelector('.theme-icon');
-        
-        // Cek tema yang disimpan atau gunakan preferensi sistem
-        const savedTheme = localStorage.getItem('bs-theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        let currentTheme = savedTheme || (prefersDark ? 'dark' : 'light');
-        setTheme(currentTheme);
-        
-        // Event listener untuk toggle
-        themeToggle.addEventListener('click', function() {
-            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(currentTheme);
-            localStorage.setItem('bs-theme', currentTheme);
-        });
-        
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-bs-theme', theme);
+        if (themeToggle) {
+            const themeIcon = themeToggle.querySelector('.theme-icon');
+            const savedTheme = localStorage.getItem('bs-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            let currentTheme = savedTheme || (prefersDark ? 'dark' : 'light');
             
-            // Update icon
-            if (theme === 'dark') {
-                themeIcon.classList.remove('bi-moon-stars');
-                themeIcon.classList.add('bi-sun');
-            } else {
-                themeIcon.classList.remove('bi-sun');
-                themeIcon.classList.add('bi-moon-stars');
+            function setTheme(theme) {
+                document.documentElement.setAttribute('data-bs-theme', theme);
+                if (theme === 'dark') {
+                    themeIcon.classList.remove('bi-moon-stars');
+                    themeIcon.classList.add('bi-sun');
+                } else {
+                    themeIcon.classList.remove('bi-sun');
+                    themeIcon.classList.add('bi-moon-stars');
+                }
             }
+            setTheme(currentTheme);
+            
+            themeToggle.addEventListener('click', function() {
+                currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                setTheme(currentTheme);
+                localStorage.setItem('bs-theme', currentTheme);
+            });
         }
         
-        // Live search dengan debounce
         const searchInput = document.getElementById('searchInput');
-        let searchTimeout;
-        
         if (searchInput) {
+            let searchTimeout;
             searchInput.addEventListener('input', function() {
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(function() {
@@ -647,35 +612,14 @@ foreach ($journals as $j) {
             });
         }
         
-        // Smooth scroll
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                if (this.getAttribute('href') !== '#') {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href');
-                    const targetElement = document.querySelector(targetId);
-                    if (targetElement) {
-                        window.scrollTo({
-                            top: targetElement.offsetTop - 80,
-                            behavior: 'smooth'
-                        });
-                    }
-                }
-            });
-        });
-        
-        // ========== RUMPUN ILMU CUSTOM INPUT ==========
         const rumpunSelect = document.getElementById('rumpunilmu_select');
         const rumpunCustom = document.getElementById('rumpunilmu_custom');
         const toggleRumpunBtn = document.getElementById('toggleRumpunMode');
         let isCustomMode = false;
         
-        // Toggle antara dropdown dan input manual
         function toggleRumpunMode() {
             isCustomMode = !isCustomMode;
-            
             if (isCustomMode) {
-                // Mode input manual
                 rumpunSelect.classList.add('d-none');
                 rumpunCustom.classList.remove('d-none');
                 toggleRumpunBtn.innerHTML = '<i class="bi bi-list"></i>';
@@ -683,7 +627,6 @@ foreach ($journals as $j) {
                 rumpunSelect.value = 'custom';
                 rumpunCustom.focus();
             } else {
-                // Mode dropdown
                 rumpunSelect.classList.remove('d-none');
                 rumpunCustom.classList.add('d-none');
                 toggleRumpunBtn.innerHTML = '<i class="bi bi-pencil"></i>';
@@ -692,12 +635,10 @@ foreach ($journals as $j) {
             }
         }
         
-        // Event listener untuk toggle button
         if (toggleRumpunBtn) {
             toggleRumpunBtn.addEventListener('click', toggleRumpunMode);
         }
         
-        // Ketika user memilih "custom" dari dropdown
         if (rumpunSelect) {
             rumpunSelect.addEventListener('change', function() {
                 if (this.value === 'custom') {
@@ -706,31 +647,21 @@ foreach ($journals as $j) {
             });
         }
         
-        // Validasi form sebelum submit
         const addJournalForm = document.getElementById('addJournalForm');
         if (addJournalForm) {
             addJournalForm.addEventListener('submit', function(e) {
-                // Jika di mode custom dan input kosong, beri peringatan
                 if (isCustomMode && rumpunCustom.value.trim() === '') {
                     e.preventDefault();
                     alert('Silakan isi rumpun ilmu atau pilih dari dropdown');
                     rumpunCustom.focus();
                     return false;
                 }
-                
-                // Jika memilih dari dropdown, pastikan dropdown dipilih
-                if (!isCustomMode && rumpunSelect.value === '' && !confirm('Rumpun ilmu tidak dipilih. Lanjutkan tanpa rumpun ilmu?')) {
-                    e.preventDefault();
-                    return false;
-                }
             });
         }
         
-        // Reset form saat modal ditutup
         const addJournalModal = document.getElementById('addJournalModal');
         if (addJournalModal) {
             addJournalModal.addEventListener('hidden.bs.modal', function() {
-                // Reset ke mode dropdown
                 if (isCustomMode) {
                     toggleRumpunMode();
                 }

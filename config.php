@@ -1,23 +1,12 @@
 <?php
-/**
- * JournalHub
- *
- * Copyright (C) 2026  Erwan Setyo Budi (erwans818@gmail.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
- *
+/*
+ * File: config.php
+ * Created on Thu Apr 16 2026
+ * Last Updated: Thu Apr 16 2026 1:08:55 PM
+ * Author: Erwan Setyo Budi
+ * Email: erwans818@gmail.com
+ * Journal Hub: Aplikasi Harvesting Metadata Jurnal Akademik Berbasis OAI-PMH
+ * License: The GNU General Public License, Version 3 (GPL-3.0) - Copyright (C) 2026 Erwan Setyo Budi. This program is free software.
  */
 
 
@@ -36,16 +25,21 @@ if (php_sapi_name() === 'cli-server') {
 }
 
 return [
-  'db' => [
-    'host' => '127.0.0.1',
-    'name' => 'cekjurnal',
-    'user' => 'root',
-    'pass' => 'root',
-    'charset' => 'utf8mb4',
-  ],
-  'ttl' => [
-    'daily' => 86400,
-    'weekly' => 604800,
-    'manual' => 0,
-  ],
+    'db' => [
+        'host' => '127.0.0.1',
+        'name' => 'cekjurnalkosongan',
+        'user' => 'root',
+        'pass' => 'root',
+        'charset' => 'utf8mb4',
+    ],
+    'ttl' => [
+        'daily' => 86400,   // 24 jam
+        'weekly' => 604800, // 7 hari
+        'manual' => 0       // tidak ada TTL
+    ],
+    'oai' => [
+        'timeout' => 60,
+        'retries' => 3,
+        'user_agent' => 'OAI-Harvester/2.0 (Compatible; PHP)'
+    ]
 ];
